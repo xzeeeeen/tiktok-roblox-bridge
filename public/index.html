@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TikTok → Roblox Bridge</title>
+<style>
+:root{--bg:#0d0f14;--card:#161a22;--line:#262c38;--tx:#e8ebf2;--mut:#8b93a5;--ac:#ff2d6f;--ok:#2ecc71;--warn:#f5b041;--bad:#e74c3c;--blue:#4da3ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5;flex-wrap:wrap}
+h1{font-size:16px;margin:0}h2{font-size:13px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+main{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;padding:12px;max-width:1400px;margin:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.wide{grid-column:1/-1}
+input,select,textarea,button{font:inherit;color:var(--tx);background:#0f1218;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+input,select,textarea{width:100%}textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:260px;resize:vertical}
+button{cursor:pointer;background:var(--ac);border-color:var(--ac);font-weight:600}button.sec{background:#0f1218;border-color:var(--line)}button:disabled{opacity:.5}
+.row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}.row>*{flex:1;min-width:110px}.row>button{flex:0 0 auto}
+label{display:block;color:var(--mut);font-size:12px;margin:0 0 3px}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600;background:#222;border:1px solid var(--line)}
+.pill.connected{background:#12301f;color:var(--ok);border-color:#1e5a37}.pill.connecting,.pill.waiting{background:#33270e;color:var(--warn);border-color:#5e4515}
+.pill.error,.pill.ended{background:#341613;color:var(--bad);border-color:#6a2a24}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px;margin-bottom:10px}
+.stat{background:#0f1218;border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center}.stat b{display:block;font-size:20px}.stat span{color:var(--mut);font-size:11px}
+.list{max-height:340px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.item{background:#0f1218;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:13px;word-break:break-word}
+.item small{color:var(--mut)}.tag{font-size:11px;padding:1px 7px;border-radius:6px;background:#222;margin-right:6px}
+.t-chat{color:var(--blue)}.t-gift{color:var(--ac)}.t-follow,.t-share{color:var(--ok)}.t-like{color:var(--warn)}
+.s-done{color:var(--ok)}.s-failed,.s-expired{color:var(--bad)}.s-queued{color:var(--warn)}.s-processing{color:var(--blue)}
+details{margin-bottom:8px}summary{cursor:pointer;color:var(--mut);margin-bottom:6px}
+.msg{font-size:12px;color:var(--mut);margin-top:6px;min-height:16px}.msg.err{color:var(--bad)}.msg.ok{color:var(--ok)}
+dialog{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:12px;padding:20px;max-width:380px;width:92%}
+dialog::backdrop{background:#000a}
+.hint{background:#1c1a0f;border:1px solid #4a4219;border-radius:8px;padding:8px 10px;font-size:12px;color:#d6c56b;margin-bottom:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎮 TikTok → Roblox Bridge</h1>
+  <div><span id="pill" class="pill">offline</span> <span id="viewers" style="color:var(--mut);margin-left:8px"></span></div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1 · Koneksi TikTok LIVE</h2>
+    <div class="row"><div><label>Username TikTok yang sedang LIVE (tanpa @)</label><input id="ttUser" placeholder="contoh: nama_akun_kamu"></div></div>
+    <details><summary>Lanjutan (opsional)</summary>
+      <div class="row"><div><label>Euler Stream Sign API Key</label><input id="ttSign" placeholder="kosongkan jika tidak punya"></div></div>
+      <div class="row"><div><label>TikTok sessionid</label><input id="ttSession" type="password" placeholder="kosongkan jika tidak perlu"></div></div>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ttWait" checked style="width:auto"> Tunggu sampai akun LIVE lalu connect otomatis</label>
+    </details>
+    <div class="row"><button id="btnConnect">Connect</button><button id="btnDisconnect" class="sec">Disconnect</button></div>
+    <div id="ttMsg" class="msg"></div>
+  </section>
+
+  <section class="card">
+    <h2>2 · Antrean Roblox</h2>
+    <div class="stats" id="stats"></div>
+    <div class="row"><button class="sec" id="btnClear">Kosongkan antrean</button></div>
+    <div class="list" id="actions"></div>
+  </section>
+
+  <section class="card">
+    <h2>Live Feed TikTok</h2>
+    <div class="list" id="feed"></div>
+  </section>
+
+  <section class="card">
+    <h2>Simulator (tes tanpa LIVE)</h2>
+    <div class="row"><div><label>Username penonton</label><input id="simUser" value="penonton1"></div></div>
+    <div class="row"><div><label>Komentar</label><input id="simComment" value="halo @builderman"></div><button id="btnChat">Kirim</button></div>
+    <div class="row"><div><label>Gift</label><select id="simGift"></select></div><div><label>Diamond</label><input id="simDia" type="number" value="1" min="0"></div><div><label>Jumlah (streak)</label><input id="simRep" type="number" value="1" min="1"></div><button id="btnGift">Kirim</button></div>
+    <div class="row"><button class="sec" id="btnFollow">Follow</button><button class="sec" id="btnShare">Share</button><button class="sec" id="btnLike">+250 Like</button></div>
+    <div id="simMsg" class="msg"></div>
+  </section>
+
+  <section class="card wide">
+    <h2>3 · Aturan (gift → efek, komentar, dll.)</h2>
+    <textarea id="mapText" spellcheck="false"></textarea>
+    <div class="row" style="margin-top:8px"><button id="btnSaveMap">Simpan aturan</button><button class="sec" id="btnReloadMap">Muat ulang</button></div>
+    <div id="mapMsg" class="msg">Efek yang tersedia di skrip Roblox: rose_rain, hearts, sparkle, confetti, fireworks, mega, welcome. Tambah efek sendiri di skrip Luau.</div>
+  </section>
+
+  <section class="card wide">
+    <h2>4 · Skrip Roblox</h2>
+    <div class="hint">Roblox tidak bisa mengakses <code>localhost</code>. Isi URL publik server ini (cloudflared / ngrok / VPS) di bawah, lalu salin skripnya ke ServerScriptService.</div>
+    <div class="row"><div><label>URL publik server</label><input id="baseUrl" placeholder="https://xxxx.trycloudflare.com"></div><button id="btnScript">Ambil skrip</button><button class="sec" id="btnCopy">Salin</button></div>
+    <textarea id="luau" readonly spellcheck="false" style="min-height:180px"></textarea>
+  </section>
+</main>
+
+<dialog id="login">
+  <h2>Masuk</h2>
+  <p style="color:var(--mut);margin-top:0">Masukkan ADMIN_API_KEY (dicetak di terminal saat server start, atau di <code>data/secrets.json</code>).</p>
+  <input id="keyInput" type="password" placeholder="Admin API key">
+  <div class="row" style="margin-top:10px"><button id="btnLogin">Masuk</button></div>
+  <div id="loginMsg" class="msg err"></div>
+</dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let KEY = localStorage.getItem('adminKey') || '';
+let es = null;
+const state = { feed: [], actions: new Map() };
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const time = (t) => new Date(t).toLocaleTimeString('id-ID');
+
+async function api(path, method = 'GET', body) {
+  const r = await fetch('/api' + path, {
+    method, headers: { 'Content-Type': 'application/json', 'x-admin-api-key': KEY },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { showLogin('Key salah.'); throw new Error('Unauthorized'); }
+  if (!j.success) throw new Error(j.error?.message || 'Gagal');
+  return j.data;
+}
+function say(el, text, kind) { el.textContent = text; el.className = 'msg ' + (kind || ''); }
+
+function showLogin(msg) { $('loginMsg').textContent = msg || ''; if (!$('login').open) $('login').showModal(); }
+$('btnLogin').onclick = () => { KEY = $('keyInput').value.trim(); localStorage.setItem('adminKey', KEY); $('login').close(); start(); };
+
+function renderStatus(s) {
+  $('pill').textContent = ({idle:'belum terhubung',connecting:'menghubungkan…',connected:'LIVE terhubung',waiting:'menunggu LIVE…',ended:'LIVE berakhir',error:'error'})[s.status] || s.status;
+  $('pill').className = 'pill ' + s.status;
+  $('viewers').textContent = s.status === 'connected' ? `@${s.username} · ${s.viewers} penonton` : (s.username ? '@' + s.username : '');
+  const m = $('ttMsg'); say(m, s.error || (s.status === 'connected' ? 'Terhubung ke room ' + s.roomId : ''), s.error ? 'err' : 'ok');
+}
+function renderStats(st) {
+  const q = st.queue, c = st.counters;
+  const box = (n, l) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`;
+  $('stats').innerHTML = box(q.queued,'menunggu') + box(q.processing,'diproses') + box(q.done,'selesai') + box(q.failed + q.expired,'gagal') + box(c.chat,'chat') + box(c.gift,'gift') + box(c.diamonds,'diamond') + box(st.likes,'like');
+}
+function renderFeed() {
+  $('feed').innerHTML = state.feed.slice().reverse().map((e) => {
+    let body = '';
+    if (e.type === 'chat') body = esc(e.comment);
+    else if (e.type === 'gift') body = `${esc(e.giftName)} ×${e.repeatCount} <small>(${e.diamonds}💎)</small>`;
+    else if (e.type === 'like') body = `like total ${e.totalLikeCount}`;
+    else body = e.type;
+    const out = (e.outcome || []).map((o) => `<div><small>→ ${esc(o)}</small></div>`).join('');
+    return `<div class="item"><span class="tag t-${e.type}">${e.type}</span><b>${esc(e.user?.nickname || e.user?.uniqueId)}</b> ${body}${out}<div><small>${time(e.ts)}${e.source === 'simulation' ? ' · simulasi' : ''}</small></div></div>`;
+  }).join('') || '<div class="item"><small>Belum ada event.</small></div>';
+}
+function renderActions() {
+  const rows = [...state.actions.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, 60);
+  $('actions').innerHTML = rows.map((a) => {
+    const p = a.payload || {};
+    const what = a.type === 'spawn' ? `spawn <b>${esc(p.robloxUsername)}</b>` : `efek <b>${esc(p.effect)}</b> ×${p.params?.intensity || 1}`;
+    return `<div class="item"><span class="tag">${a.type}</span>${what} <span class="s-${a.status}">● ${a.status}</span><div><small>${esc(p.from?.uniqueId || '')} · ${time(a.createdAt)}${a.error ? ' · ' + esc(a.error) : ''}</small></div></div>`;
+  }).join('') || '<div class="item"><small>Antrean kosong.</small></div>';
+}
+function fillGifts(m) {
+  const sel = $('simGift'), cur = sel.value;
+  sel.innerHTML = Object.keys(m.gifts).map((g) => `<option>${esc(g)}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+function setMap(m) { $('mapText').value = JSON.stringify(m, null, 2); fillGifts(m); }
+
+function start() {
+  if (!KEY) return showLogin();
+  if (es) es.close();
+  es = new EventSource('/api/stream?key=' + encodeURIComponent(KEY));
+  es.addEventListener('snapshot', (e) => {
+    const d = JSON.parse(e.data);
+    state.feed = d.feed; state.actions = new Map(d.actions.map((a) => [a.id, a]));
+    renderStatus(d.tiktok); renderStats(d.stats); renderFeed(); renderActions(); setMap(d.mappings);
+    if (d.tiktok.username && !$('ttUser').value) $('ttUser').value = d.tiktok.username;
+  });
+  es.addEventListener('status', (e) => renderStatus(JSON.parse(e.data)));
+  es.addEventListener('stats', (e) => renderStats(JSON.parse(e.data)));
+  es.addEventListener('feed', (e) => { state.feed.push(JSON.parse(e.data)); if (state.feed.length > 100) state.feed.shift(); renderFeed(); });
+  es.addEventListener('action', (e) => { const a = JSON.parse(e.data); state.actions.set(a.id, a); renderActions(); });
+  es.onerror = () => { if (es.readyState === EventSource.CLOSED) showLogin('Tidak bisa terhubung / key salah.'); };
+}
+
+$('btnConnect').onclick = async () => {
+  try {
+    say($('ttMsg'), 'Menghubungkan…');
+    await api('/tiktok/connect', 'POST', { username: $('ttUser').value, signApiKey: $('ttSign').value, sessionId: $('ttSession').value, waitForLive: $('ttWait').checked });
+  } catch (e) { say($('ttMsg'), e.message, 'err'); }
+};
+$('btnDisconnect').onclick = () => api('/tiktok/disconnect', 'POST', {}).catch((e) => say($('ttMsg'), e.message, 'err'));
+$('btnClear').onclick = () => confirm('Kosongkan semua antrean?') && api('/actions', 'DELETE');
+
+const sim = async (body) => { try { const r = await api('/simulate', 'POST', { user: $('simUser').value, ...body }); say($('simMsg'), (r.outcome.join(', ') || 'event diterima (tidak memicu aksi)'), 'ok'); } catch (e) { say($('simMsg'), e.message, 'err'); } };
+$('btnChat').onclick = () => sim({ type: 'chat', comment: $('simComment').value });
+$('btnGift').onclick = () => sim({ type: 'gift', giftName: $('simGift').value, diamonds: +$('simDia').value, repeatCount: +$('simRep').value });
+$('btnFollow').onclick = () => sim({ type: 'follow' });
+$('btnShare').onclick = () => sim({ type: 'share' });
+$('btnLike').onclick = () => sim({ type: 'like', likeCount: 250 });
+
+$('btnSaveMap').onclick = async () => {
+  try { const m = await api('/mappings', 'PUT', JSON.parse($('mapText').value)); setMap(m); say($('mapMsg'), 'Aturan tersimpan ✔', 'ok'); }
+  catch (e) { say($('mapMsg'), e.message, 'err'); }
+};
+$('btnReloadMap').onclick = async () => setMap(await api('/mappings'));
+
+$('baseUrl').value = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? '' : location.origin;
+$('btnScript').onclick = async () => {
+  try { const b = $('baseUrl').value.trim(); const r = await api('/roblox/script' + (b ? '?base=' + encodeURIComponent(b) : '')); $('luau').value = r.script; }
+  catch (e) { $('luau').value = '-- ' + e.message; }
+};
+$('btnCopy').onclick = async () => { await navigator.clipboard.writeText($('luau').value); $('btnCopy').textContent = 'Tersalin ✔'; setTimeout(() => $('btnCopy').textContent = 'Salin', 1500); };
+
+start();
+</script>
+</body>
+</html>
