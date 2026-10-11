@@ -1,0 +1,41 @@
+
+name: Extract project ZIP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract ZIP
+        run: |
+          unzip -o tiktok-roblox-bridge.zip -d extracted
+          find extracted -maxdepth 2 -name package.json
+
+          ROOT=$(find extracted -name package.json -printf '%h\n' | head -n 1)
+          if [ -z "$ROOT" ]; then
+            echo "package.json tidak ditemukan"
+            exit 1
+          fi
+
+          cp -a "$ROOT"/. .
+          rm -rf extracted
+          rm -f tiktok-roblox-bridge.zip
+
+      - name: Commit extracted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || (
+            git commit -m "Extract project files" &&
+            git push
+          )
+          
